@@ -1,6 +1,6 @@
 <template>
     <div id="app">
-        <div class="main">
+        <!-- <div class="main">
             移动中
             <div v-for="(x,i) in gameData_move" :key="i">
                 <div v-for="(y,j) in x" :key="j">{{y}}</div>
@@ -11,28 +11,80 @@
             <div v-for="(x,i) in gameData_fixed" :key="i">
                 <div v-for="(y,j) in x" :key="j">{{y}}</div>
             </div>
-        </div>
+        </div> -->
         <div class="main">
-            画面显示结果
+            <button @click="game_allow=!game_allow">{{game_allow?'暂停':'开始'}}</button>
             <div v-for="(x,i) in gameData_result" :key="i">
-                <div v-for="(y,j) in x" :key="j">{{y}}</div>
+                <div :class="computer_diamondClass_fun(y,i,j)" v-for="(y,j) in x" :key="j" />
             </div>
         </div>
-        <div>{{gameData_move_center}}</div>
+        <!-- <div>{{gameData_move_center}}</div> -->
     </div>
 </template>
 
 <script>
     // 配置游戏参数
-    let h = 7;
-    let w = 4;
-    // let setTime;
+    let h = 22;
+    let w = 16;
+    let setTime;
+    let gameData_config = [{
+        label: '田',
+        value: [
+            [1, 1, 0],
+            [1, 1, 0],
+            [0, 0, 0]
+        ]
+    }, {
+        label: 'L',
+        value: [
+            [0, 1, 1],
+            [0, 1, 0],
+            [0, 1, 0]
+        ]
+    }, {
+        label: 'J',
+        value: [
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 1, 0]
+        ]
+    }, {
+        label: 'Z',
+        value: [
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0]
+        ]
+    }, {
+        label: 'S',
+        value: [
+            [0, 0, 1],
+            [0, 1, 1],
+            [0, 1, 0]
+        ]
+    }, {
+        label: 'l',
+        value: [
+            [0, 1, 0],
+            [0, 1, 0],
+            [0, 1, 0]
+        ]
+    }, {
+        label: '山',
+        value: [
+            [1, 1, 1],
+            [0, 1, 0],
+            [0, 0, 0]
+        ]
+    }]
 
     export default {
         name: 'app',
         props: {},
         data() {
             return {
+                // 是否允许进行游戏
+                game_allow: false,
                 // 移动区域游戏数据
                 gameData_move: [],
                 // 固定显示游戏数据
@@ -40,7 +92,7 @@
                 // 最终合并显示区域游戏数据，gameData_move 和 gameData_fixed 的相加
                 gameData_result: [],
                 // 记录gameData_move的中心点，用于旋转算法
-                gameData_move_center: { h: 8, w: 2 },
+                gameData_move_center: { h: -1, w: -1 },
                 // 记录旧的用于矫正恢复
                 gameData_move_center_old: { h: 0, w: 0 }
             }
@@ -60,15 +112,41 @@
             this.initialize_gameData_fun(this.gameData_fixed)
             this.initialize_gameData_fun(this.gameData_result)
 
-            // 测试
-            this.gameData_move[9][3] = this.gameData_move[8][3] = this.gameData_move[8][2] = this.gameData_move[7][2] = 1
-            this.gameData_fixed[0][1] = this.gameData_fixed[0][2] = this.gameData_fixed[0][3] = this.gameData_fixed[1][2] = this.gameData_fixed[1][3] = this.gameData_fixed[2][2] = 1
-            // setTime = setInterval(() => {
-            //     this.moveDown_fun()
-            // }, 1000);
-            // 测试 end
+            // 装填
+            this.game_start_fun()
+
+            // 永循环下落开始
+            setTime = setInterval(() => {
+                if (this.game_allow) this.moveDown_fun()
+            }, 1000);
         },
         methods: {
+            /**
+             * 开始一轮游戏
+             */
+            game_start_fun() {
+                // 初始化重置
+                this.gameData_move = this.initialize_gameData_fun(undefined, 3)
+                this.change_center_fun()
+                // 随机选取方块
+                let random = Math.floor(Math.random() * gameData_config.length)
+                let obj = gameData_config[random]
+                // 找到中心点
+                this.gameData_move_center.h = h + 1
+                this.gameData_move_center.w = Math.floor(w / 2)
+                // 数组变换装填
+                let x = this.gameData_move_center.h;
+                let y = this.gameData_move_center.w;
+                let arr = obj.value[0].concat(obj.value[1]).concat(obj.value[2])
+                for (let i = x - 1; i <= x + 1; i++) {
+                    for (let j = y - 1; j <= y + 1; j++) {
+                        let num = arr.shift()
+                        this.gameData_move[i][j] = num
+                    }
+                }
+                // 开启游戏
+                // this.game_allow = true
+            },
             /**
              * 初始化全归零
              * 确保传入为空数组
@@ -109,8 +187,16 @@
                 if (flag === false && flag2 === false) { // 有重合 且结束一轮游戏
                     console.log("重合结束");
                     this.gameData_fixed = JSON.parse(JSON.stringify(this.gameData_result))
-                    this.gameData_move = this.initialize_gameData_fun(undefined, 3)
-                    this.change_center_fun()
+                    if (/1/.test(arr.slice(h - 1, h + 2))) {
+                        // 结束游戏
+                        this.game_allow = false
+                        this.gameData_move = this.initialize_gameData_fun(undefined, 3)
+                        this.change_center_fun()
+                        alert('游戏结束，重新开始！！！')
+                        location.reload()
+                        return false
+                    }
+                    this.game_start_fun()
                 } else if (flag === false && flag2 === true) { // 重合异常，不会阻断游戏，矫正移动数据
                     console.log("重合异常");
                     this.gameData_move = JSON.parse(JSON.stringify(snapshoot))
@@ -121,8 +207,16 @@
                 } else if (flag === true && bottomOut === false) { // 没有重合但是触底了 使用 arr
                     console.log("触底结束");
                     this.gameData_fixed = JSON.parse(JSON.stringify(arr))
-                    this.gameData_move = this.initialize_gameData_fun(undefined, 3)
-                    this.change_center_fun()
+                    if (/1/.test(arr.slice(h - 1, h + 2))) {
+                        // 结束游戏
+                        this.game_allow = false
+                        this.gameData_move = this.initialize_gameData_fun(undefined, 3)
+                        this.change_center_fun()
+                        alert('游戏结束，重新开始！！！')
+                        location.reload()
+                        return false
+                    }
+                    this.game_start_fun()
                 } else if (flag === true && bottomOut === true) { // 没有重合也没有触底 使用正常的 arr
                     console.log("正常显示结果");
                     this.gameData_result = arr
@@ -133,7 +227,7 @@
              */
             left_fun() {
                 // 未到头能移动
-                if (this.gameData_move.find(n => n[0] === 1) === undefined) {
+                if (this.gameData_move.find(n => n[0] === 1) === undefined && this.game_allow) {
                     console.log("左移")
                     this.change_center_fun(0, -1)
                     this.gameData_move.forEach(item => {
@@ -147,7 +241,7 @@
              */
             right_fun() {
                 // 未到头能移动
-                if (this.gameData_move.find(n => n[w - 1] === 1) === undefined) {
+                if (this.gameData_move.find(n => n[w - 1] === 1) === undefined && this.game_allow) {
                     console.log("右移")
                     this.change_center_fun(0, 1)
                     this.gameData_move.forEach(item => {
@@ -160,6 +254,7 @@
              * 快速下移一格
              */
             moveDown_fun() {
+                if (!this.game_allow) return false
                 console.log("下移")
                 this.change_center_fun(-1, 0)
                 this.gameData_move.shift()
@@ -169,7 +264,7 @@
              * 顺时针旋转处理
              */
             spin_fun() {
-                if (this.gameData_move_center.h === 0 && this.gameData_move_center.w === 0) return false; // 正方形方块没有旋转功能
+                if (this.gameData_move_center.h === -1 && this.gameData_move_center.w === -1 && this.game_allow) return false; // 正方形方块没有旋转功能 且 不能进行游戏
                 let x = this.gameData_move_center.h;
                 let y = this.gameData_move_center.w;
                 let arr = []
@@ -184,6 +279,7 @@
                             arr.push(item)
                             let newX = x - (item.w - y)
                             let newY = y - (x - item.h)
+                            // 不能超出 且 旋转位置不能再固定盘有子
                             if (newX < 0 || newX >= (h + 3) || newY < 0 || newY >= w || (newX < h && this.gameData_fixed[newX][newY] === 1)) {
                                 flag = false
                                 return false
@@ -209,11 +305,23 @@
              */
             change_center_fun(y = 0, x = 0) {
                 if (y === 0 && x === 0) {
-                    this.gameData_move_center.h = this.gameData_move_center.w = 0
+                    this.gameData_move_center.h = this.gameData_move_center.w = -1
                     return false
                 }
                 this.gameData_move_center.h += y;
                 this.gameData_move_center.w += x;
+            },
+            /**
+             * 计算返回的样式
+             */
+            computer_diamondClass_fun(value, i, j) {
+                if (value === 1 && this.gameData_fixed[i][j] === 1) {
+                    return 'diamond selected'
+                } else if (value === 1 && this.gameData_fixed[i][j] === 0) {
+                    return 'diamond move'
+                } else {
+                    return 'diamond'
+                }
             }
         },
         watch: {
@@ -261,22 +369,37 @@
                 return JSON.parse(JSON.stringify(this.gameData_move_center))
             }
         },
-        filters: {},
-        beforeDestroy() {}
+        beforeDestroy() {
+            clearInterval(setTime)
+        }
     }
 </script>
 
 <style lang="scss">
     #app {
-        display: flex;
 
         .main {
+            width: min-content;
+            margin: 100px auto;
             display: flex;
             flex-direction: column-reverse;
-            margin: 0 20px;
 
             >div {
                 display: flex;
+            }
+
+            .diamond {
+                width: 30px;
+                height: 30px;
+                border: 1px solid #ccc;
+            }
+
+            .selected {
+                background: #ccc;
+            }
+
+            .move {
+                background: sandybrown;
             }
         }
     }
