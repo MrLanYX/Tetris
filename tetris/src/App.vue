@@ -13,10 +13,22 @@
             </div>
         </div> -->
         <div class="main">
-            <button @click="game_allow=!game_allow">{{game_allow?'暂停':'开始'}}</button>
+            <div class="operate">
+                <button @click="spin_fun()" style="border-radius: 50%;">旋转</button>
+                <div>
+                    <p>
+                        <button @click="left_fun()">左移</button>
+                        <button @click="right_fun()">右移</button>
+                    </p>
+                    <p>
+                        <button @click="moveDown_fun()">下移</button>
+                    </p>
+                </div>
+            </div>
             <div v-for="(x,i) in gameData_result" :key="i">
                 <div :class="computer_diamondClass_fun(y,i,j)" v-for="(y,j) in x" :key="j" />
             </div>
+            <button @click="game_allow=!game_allow">{{game_allow?'暂停':'开始'}}</button>
         </div>
         <!-- <div>{{gameData_move_center}}</div> -->
     </div>
@@ -24,8 +36,8 @@
 
 <script>
     // 配置游戏参数
-    let h = 22;
-    let w = 16;
+    let h = 20;
+    let w = 10;
     let setTime;
     let gameData_config = [{
         label: '田',
@@ -94,7 +106,9 @@
                 // 记录gameData_move的中心点，用于旋转算法
                 gameData_move_center: { h: -1, w: -1 },
                 // 记录旧的用于矫正恢复
-                gameData_move_center_old: { h: 0, w: 0 }
+                gameData_move_center_old: { h: 0, w: 0 },
+                // 触底定时器 用存在来判断是否能继续
+                bottom_setTime: true,
             }
         },
         mounted() {
@@ -206,17 +220,22 @@
                     })
                 } else if (flag === true && bottomOut === false) { // 没有重合但是触底了 使用 arr
                     console.log("触底结束");
-                    this.gameData_fixed = JSON.parse(JSON.stringify(arr))
-                    if (/1/.test(arr.slice(h - 1, h + 2))) {
-                        // 结束游戏
-                        this.game_allow = false
-                        this.gameData_move = this.initialize_gameData_fun(undefined, 3)
-                        this.change_center_fun()
-                        alert('游戏结束，重新开始！！！')
-                        location.reload()
-                        return false
-                    }
-                    this.game_start_fun()
+                    // 给个延迟 用户触底也能操作
+                    this.bottom_setTime = false
+                    setTimeout(() => {
+                        this.gameData_fixed = JSON.parse(JSON.stringify(arr))
+                        this.bottom_setTime = true
+                        if (/1/.test(arr.slice(h - 1, h + 2))) {
+                            // 结束游戏
+                            this.game_allow = false
+                            this.gameData_move = this.initialize_gameData_fun(undefined, 3)
+                            this.change_center_fun()
+                            alert('游戏结束，重新开始！！！')
+                            location.reload()
+                            return false
+                        }
+                        this.game_start_fun()
+                    }, 500);
                 } else if (flag === true && bottomOut === true) { // 没有重合也没有触底 使用正常的 arr
                     console.log("正常显示结果");
                     this.gameData_result = arr
@@ -254,7 +273,7 @@
              * 快速下移一格
              */
             moveDown_fun() {
-                if (!this.game_allow) return false
+                if (!this.game_allow || !this.bottom_setTime) return false
                 console.log("下移")
                 this.change_center_fun(-1, 0)
                 this.gameData_move.shift()
@@ -400,6 +419,16 @@
 
             .move {
                 background: sandybrown;
+            }
+
+            .operate {
+                display: flex;
+                justify-content: space-between;
+
+                p {
+                    margin: 0;
+                    text-align: center;
+                }
             }
         }
     }
